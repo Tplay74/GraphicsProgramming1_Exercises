@@ -13,6 +13,7 @@
 #include <primitives.h>
 #include <matrix.h>
 #include <valarray>
+#include <assimp/MathFunctions.h>
 
 namespace gfx
 {
@@ -40,10 +41,26 @@ namespace gfx
 	static bool HitTestPlane(const Plane& plane, const Ray& ray, 
 		RayHitRecord& hit_record, const bool ignore_hit_record = false)
 	{
-		//TODO
-		assert(false && "Not Implemented");
-		(void)plane; (void)ray; (void)hit_record; (void)ignore_hit_record;
-		return false;
+		const Vector3 originDistanceVector{plane.origin - ray.origin};
+		const float dn {Vector3::Dot(ray.direction, plane.normal)};
+
+		//backface culling
+		if (dn >= 0) return false;
+
+		const float t{Vector3::Dot(originDistanceVector, plane.normal) / dn};
+		if (t <= 0) return false; // plane behind camera
+
+		//check if point in finite plane
+		const Vector3 hitPoint{ray.origin + t * ray.direction};
+		const float ONB_u{Vector3::Dot(hitPoint, plane.tangent)};
+		const float ONB_v{Vector3::Dot(hitPoint, Vector3::Cross(plane.normal, plane.tangent))};
+
+		if (abs(ONB_u) > plane.half_extent->x || abs(ONB_v) > plane.half_extent->y) return false;
+
+		if (ignore_hit_record) return true;
+
+		hit_record.t = t;
+		return true;
 	}
 
 	[[maybe_unused]]

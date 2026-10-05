@@ -24,7 +24,6 @@ void SoftwarePathTracer::Render()
 {
 	assert(context_ && "Context not available!");
 
-	// DEMO CODE - TODO: remove!
 	const SurfaceInfo& surface_info = context_->surface_info;
 	const float aspectRatio{static_cast<float>(surface_info.width) / static_cast<float>(surface_info.height)};
 	for (uint32_t py = 0; py < surface_info.height; ++py)
@@ -36,18 +35,18 @@ void SoftwarePathTracer::Render()
 
 			const Vector3 rayDirection{Vector3{(xNdc), (yNdc), 1.f}.Normalized()};
 			const Ray viewRay{Vector3{0.f, 0.f, 0.f}, rayDirection};
-
 			RayHitRecord closestHitRecord{};
-			const Sphere sphere {Vector3{0.f, 0.f, 100.f}, 50.f};
-			const bool didHit{ HitTestSphere(sphere, viewRay, closestHitRecord)};
-			if (!didHit) continue;
+
+			const Vector2 halfExtent{100.f, 100.f};
+			const Plane testPlane{Vector3{0.f, -50.f, 0.f}, Vector3{0.f, 1.f, 0.f}, true, halfExtent};
+			if (!HitTestPlane(testPlane, viewRay, closestHitRecord)) continue;
 
 			ShadingInput shadingInput{};
 			shadingInput.world_position = viewRay.origin + closestHitRecord.t * rayDirection;
-			shadingInput.world_normal = Vector3{shadingInput.world_position - sphere.origin}.Normalized();
+			shadingInput.world_normal = testPlane.normal;
 
+			//Choose color based on visualization mode
 			ColorRgba finalColor{};
-
 			if (context_->debug_params.visualization_mode == VisualizationMode::kDepth)
 			{
 				const float maxDepth{100.f};
