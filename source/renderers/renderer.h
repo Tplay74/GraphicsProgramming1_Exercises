@@ -29,6 +29,7 @@ namespace gfx
 
 		//--- Pure Virtual Functions ---
 		virtual void Render() = 0;
+
 	};
 }
 #endif //RENDERER_HEADER

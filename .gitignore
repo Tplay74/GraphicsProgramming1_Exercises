@@ -62,6 +62,7 @@ CMakeUserPresets.json
 
 # Clang
 .cache
+.clang-format
 
 # Setup
 .local
