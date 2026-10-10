@@ -11,10 +11,7 @@ using namespace gfx;
 //=============================================================================
 //Construction / Destruction
 //=============================================================================
-SoftwarePathTracer::SoftwarePathTracer(Context* const context)
-  : Renderer(context)
-{
-}
+SoftwarePathTracer::SoftwarePathTracer(Context* const context) : Renderer(context) {}
 
 SoftwarePathTracer::~SoftwarePathTracer() = default;
 
@@ -27,40 +24,39 @@ void SoftwarePathTracer::Render()
 
 	const Scene* activeScene {context_->scene_manager->GetActiveScene()};
 	const SurfaceInfo& surface_info = context_->surface_info;
+
 	const float aspectRatio {static_cast<float>(surface_info.width) /
 	                         static_cast<float>(surface_info.height)};
+	const float fovAngleRadians {activeScene->camera.GetFovAngle() *
+	                             (static_cast<float>(std::numbers::pi) / 180.f)};
+	const float fovScalar {std::tanf(fovAngleRadians / 2)};
+
 	const Vector3 cameraPosition {activeScene->camera.GetPosition()};
 
 	for (uint32_t py = 0; py < surface_info.height; ++py)
 	{
 		for (uint32_t px = 0; px < surface_info.width; ++px)
 		{
-			const float xNdc {(2 * (px + 0.5f) / surface_info.width - 1) *
-			                  aspectRatio};
-			const float yNdc {1 - 2 * (py + 0.5f) / surface_info.height};
+			const float xNdc {(2 * (px + 0.5f) / surface_info.width - 1) * aspectRatio * fovScalar};
+			const float yNdc {(1 - 2 * (py + 0.5f) / surface_info.height) * fovScalar};
 
 			RayHitRecord closestHitRecord {};
-			const Ray viewRay {cameraPosition,
-			                   Vector3 {xNdc, yNdc, 1.f}.Normalized()};
+			const Ray viewRay {cameraPosition, Vector3 {xNdc, yNdc, 1.f}.Normalized()};
 
 			bool didHit {SceneClosestHitTest(viewRay, closestHitRecord)};
 			if (didHit)
 			{
-				const ShadingInput shadingInput {
-				  ConstructShadingInput(closestHitRecord)};
+				const ShadingInput shadingInput {ConstructShadingInput(closestHitRecord)};
 
 				//Choose color based on visualization mode
 				ColorRgba finalColor {};
-				if (context_->debug_params.visualization_mode ==
-				    VisualizationMode::kDepth)
+				if (context_->debug_params.visualization_mode == VisualizationMode::kDepth)
 				{
 					constexpr auto maxDepth {100.f};
-					const float scaledT {
-					  1.f - std::clamp(closestHitRecord.t / maxDepth, 0.f, 1.f)};
+					const float scaledT {1.f - std::clamp(closestHitRecord.t / maxDepth, 0.f, 1.f)};
 					finalColor = ColorRgba {scaledT};
 				}
-				else if (context_->debug_params.visualization_mode ==
-				         VisualizationMode::kNormals)
+				else if (context_->debug_params.visualization_mode == VisualizationMode::kNormals)
 				{
 					const Vector3& n {shadingInput.world_normal};
 					finalColor = ColorRgba {
@@ -113,8 +109,7 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray,
 	for (uint32_t i {0}; i < activeScene.objects.size(); ++i)
 	{
 		const SceneObject& object {activeScene.objects.at(i)};
-		const auto& currentPrimitive {
-		  *activeScene.primitives_factory.Get(object.primitive_index)};
+		const auto& currentPrimitive {*activeScene.primitives_factory.Get(object.primitive_index)};
 
 		if (currentPrimitive.HitTest(ray, closestHit, ignoreRecord))
 		{
@@ -125,31 +120,27 @@ bool SoftwarePathTracer::SceneClosestHitTest(const Ray& ray,
 	return didHit;
 }
 
-ShadingInput
-SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) const
+ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) const
 {
 	ShadingInput shadingInput {};
 
-	shadingInput.view_direction = hit.ray.direction.Normalized();
-	shadingInput.world_position = hit.ray.origin + hit.t * hit.ray.direction;
+	shadingInput.view_direction = -hit.ray.direction_.Normalized();
+	shadingInput.world_position = hit.ray.origin + hit.t * hit.ray.direction_;
 
-	const auto& hitObject {
-	  context_->scene_manager->GetActiveScene()->objects.at(hit.object_index)};
+	const auto& hitObject {context_->scene_manager->GetActiveScene()->objects.at(hit.object_index)};
 	const auto& hitPrimitive {
-	  *context_->scene_manager->GetActiveScene()->primitives_factory.Get(
-	    hitObject.primitive_index)};
+	  *context_->scene_manager->GetActiveScene()->primitives_factory.Get(hitObject.primitive_index)};
 
-	assert(hitPrimitive.type == PrimitiveType::kPlane ||
-	       hitPrimitive.type == PrimitiveType::kSphere);
+	assert(hitPrimitive.type == PrimitiveType::kPlane || hitPrimitive.type == PrimitiveType::kSphere);
 
 	switch (hitPrimitive.type)
 	{
 	case PrimitiveType::kPlane:
-		shadingInput.world_normal = static_cast<const Plane&>(hitPrimitive).normal;
+		shadingInput.world_normal = static_cast<const Plane&>(hitPrimitive).normal_;
 		break;
 	case PrimitiveType::kSphere:
-		shadingInput.world_normal = static_cast<const Sphere&>(hitPrimitive)
-		                              .GetNormal(shadingInput.world_position);
+		shadingInput.world_normal =
+		  static_cast<const Sphere&>(hitPrimitive).GetNormal(shadingInput.world_position);
 		break;
 	}
 
