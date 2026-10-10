@@ -13,25 +13,29 @@
 
 namespace gfx
 {
-    //--- Software Path Tracer ---
-    class SoftwarePathTracer final : public Renderer
-    {
-    public:
-        //--- Construction / Destruction ---
-        SoftwarePathTracer(Context*  context);
-        ~SoftwarePathTracer() override;
+	//--- Software Path Tracer ---
+	class SoftwarePathTracer final : public Renderer
+	{
+	public:
+		//--- Construction / Destruction ---
+		SoftwarePathTracer(Context* context);
+		~SoftwarePathTracer() override;
 
-        SoftwarePathTracer(const SoftwarePathTracer&) = delete;
-        SoftwarePathTracer& operator=(const SoftwarePathTracer&) = delete;
-        SoftwarePathTracer(SoftwarePathTracer&&) = delete;
-        SoftwarePathTracer& operator=(SoftwarePathTracer&&) = delete;
+		SoftwarePathTracer(const SoftwarePathTracer&) = delete;
+		SoftwarePathTracer& operator=(const SoftwarePathTracer&) = delete;
+		SoftwarePathTracer(SoftwarePathTracer&&) = delete;
+		SoftwarePathTracer& operator=(SoftwarePathTracer&&) = delete;
 
-        //--- Public Functions ---
-        void Render() override;
+		//--- Public Functions ---
+		void Render() override;
 
-    private:
-        bool SceneClosestHitTest(const Ray& ray, RayHitRecord& closestHit, bool ignoreRecord = false) const;
-        ShadingInput ConstructShadingInput(const RayHitRecord& hit) const;
-    };
-}
+	private:
+		bool
+		SceneClosestHitTest(const Ray& ray, RayHitRecord& closestHit, bool ignoreRecord = false) const;
+		ShadingInput ConstructShadingInput(const RayHitRecord& hit) const;
+		void WriteToSurface(int px, int py, const ColorRgba& color) const;
+		[[nodiscard]] ColorRgba GetColor(const ShadingInput& shadingInput,
+		                                 const RayHitRecord& rayHitRecord) const;
+	};
+} //namespace gfx
 #endif //SOFTWARE_PATH_TRACER_HEADER

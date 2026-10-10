@@ -48,52 +48,11 @@ void SoftwarePathTracer::Render()
 			{
 				const ShadingInput shadingInput {ConstructShadingInput(closestHitRecord)};
 
-				//Choose color based on visualization mode
-				ColorRgba finalColor {};
-				if (context_->debug_params.visualization_mode == VisualizationMode::kDepth)
-				{
-					constexpr auto maxDepth {100.f};
-					const float scaledT {1.f - std::clamp(closestHitRecord.t / maxDepth, 0.f, 1.f)};
-					finalColor = ColorRgba {scaledT};
-				}
-				else if (context_->debug_params.visualization_mode == VisualizationMode::kNormals)
-				{
-					const Vector3& n {shadingInput.world_normal};
-					finalColor = ColorRgba {
-					  (n.x + 1.f) * 0.5f,
-					  (n.y + 1.f) * 0.5f,
-					  (n.z + 1.f) * 0.5f,
-					};
-				}
-				else
-				{
-					const uint32_t objectIndex {closestHitRecord.object_index};
-					const auto r {static_cast<float>(objectIndex & 1)};
-					const auto g {static_cast<float>((objectIndex >> 1) & 1)};
-					const auto b {static_cast<float>((objectIndex >> 2) & 1)};
-
-					finalColor = ColorRgba {r, g, b};
-				}
-
-				//Write to surface
-				surface_info.pixel_buffer[px + (py * surface_info.width)] =
-				  SDL_MapRGB(surface_info.pixel_format_details,
-				             nullptr,
-				             static_cast<uint8_t>(finalColor.r * 255),
-				             static_cast<uint8_t>(finalColor.g * 255),
-				             static_cast<uint8_t>(finalColor.b * 255));
+				WriteToSurface(px, py, GetColor(shadingInput, closestHitRecord));
 			}
 			else
 			{
-				const auto& color {activeScene->background_color};
-
-				//Write to surface
-				surface_info.pixel_buffer[px + (py * surface_info.width)] =
-				  SDL_MapRGB(surface_info.pixel_format_details,
-				             nullptr,
-				             static_cast<uint8_t>(color.r * 255),
-				             static_cast<uint8_t>(color.g * 255),
-				             static_cast<uint8_t>(color.b * 255));
+				WriteToSurface(px, py, activeScene->background_color);
 			}
 		}
 	}
@@ -145,4 +104,40 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 	}
 
 	return shadingInput;
+}
+
+void SoftwarePathTracer::WriteToSurface(int px, int py, const ColorRgba& color) const
+{
+	context_->surface_info.pixel_buffer[px + (py * context_->surface_info.width)] =
+	  SDL_MapRGB(context_->surface_info.pixel_format_details,
+	             nullptr,
+	             static_cast<uint8_t>(color.r * 255),
+	             static_cast<uint8_t>(color.g * 255),
+	             static_cast<uint8_t>(color.b * 255));
+}
+
+ColorRgba SoftwarePathTracer::GetColor(const ShadingInput& shadingInput,
+                                       const RayHitRecord& rayHitRecord) const
+{
+	if (context_->debug_params.visualization_mode == VisualizationMode::kDepth)
+	{
+		constexpr auto maxDepth {100.f};
+		const float scaledT {1.f - std::clamp(rayHitRecord.t / maxDepth, 0.f, 1.f)};
+		return ColorRgba {scaledT};
+	}
+	if (context_->debug_params.visualization_mode == VisualizationMode::kNormals)
+	{
+		const Vector3& n {shadingInput.world_normal};
+		return ColorRgba {
+		  (n.x + 1.f) * 0.5f,
+		  (n.y + 1.f) * 0.5f,
+		  (n.z + 1.f) * 0.5f,
+		};
+	}
+	const uint32_t objectIndex {rayHitRecord.object_index};
+	const auto r {static_cast<float>(objectIndex & 1)};
+	const auto g {static_cast<float>((objectIndex >> 1) & 1)};
+	const auto b {static_cast<float>((objectIndex >> 2) & 1)};
+
+	return ColorRgba {r, g, b};
 }
