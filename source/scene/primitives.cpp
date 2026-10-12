@@ -81,7 +81,7 @@ bool Plane::HitTest(const Ray& ray, RayHitRecord& hit_record, const bool ignore_
 {
 	const float denominator {Vector3::Dot(ray.direction_, normal_)};
 
-	if (denominator >= 0.f) return false;
+	if (denominator >= 0.f && !double_sided) return false;
 
 	const Vector3 originDistanceVector {origin - ray.origin};
 	const float distance {Vector3::Dot(originDistanceVector, normal_) / denominator};

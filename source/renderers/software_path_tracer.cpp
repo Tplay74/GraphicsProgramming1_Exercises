@@ -22,16 +22,17 @@ void SoftwarePathTracer::Render()
 {
 	assert(context_ && "Context not available!");
 
-	const Scene* activeScene {context_->scene_manager->GetActiveScene()};
+	Scene& activeScene {*context_->scene_manager->GetActiveScene()};
+
+	Camera& camera {activeScene.camera};
+	const Vector3 cameraPosition {camera.GetPosition()};
+
 	const SurfaceInfo& surface_info = context_->surface_info;
 
 	const float aspectRatio {static_cast<float>(surface_info.width) /
 	                         static_cast<float>(surface_info.height)};
-	const float fovAngleRadians {activeScene->camera.GetFovAngle() *
-	                             (static_cast<float>(std::numbers::pi) / 180.f)};
+	const float fovAngleRadians {Matrix::ToRadians(camera.GetFovAngle())};
 	const float fovScalar {std::tanf(fovAngleRadians / 2)};
-
-	const Vector3 cameraPosition {activeScene->camera.GetPosition()};
 
 	for (uint32_t py = 0; py < surface_info.height; ++py)
 	{
@@ -41,19 +42,21 @@ void SoftwarePathTracer::Render()
 			const float yNdc {(1 - 2 * (py + 0.5f) / surface_info.height) * fovScalar};
 
 			RayHitRecord closestHitRecord {};
-			const Ray viewRay {cameraPosition, Vector3 {xNdc, yNdc, 1.f}.Normalized()};
 
-			bool didHit {SceneClosestHitTest(viewRay, closestHitRecord)};
-			if (didHit)
+			const auto viewSpaceRayDirection {Vector3 {xNdc, yNdc, 1.f}};
+			const auto& cameraTransform {camera.GetView()};
+
+			const Vector3 worldSpaceRayDirection {
+			  cameraTransform.TransformVector(viewSpaceRayDirection).Normalized()};
+			const Ray cameraRay {cameraPosition, worldSpaceRayDirection};
+
+			if (SceneClosestHitTest(cameraRay, closestHitRecord))
 			{
 				const ShadingInput shadingInput {ConstructShadingInput(closestHitRecord)};
 
 				WriteToSurface(px, py, GetColor(shadingInput, closestHitRecord));
 			}
-			else
-			{
-				WriteToSurface(px, py, activeScene->background_color);
-			}
+			else { WriteToSurface(px, py, activeScene.background_color); }
 		}
 	}
 }
@@ -83,8 +86,8 @@ ShadingInput SoftwarePathTracer::ConstructShadingInput(const RayHitRecord& hit) 
 {
 	ShadingInput shadingInput {};
 
-	shadingInput.view_direction = -hit.ray.direction_.Normalized();
 	shadingInput.world_position = hit.ray.origin + hit.t * hit.ray.direction_;
+	shadingInput.view_direction = -hit.ray.direction_;
 
 	const auto& hitObject {context_->scene_manager->GetActiveScene()->objects.at(hit.object_index)};
 	const auto& hitPrimitive {
